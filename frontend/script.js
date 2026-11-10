@@ -1,4 +1,4 @@
-const API_URL = "https://flight-pricing-app.de1.netrun.io";
+const API_URL = "https://fly3.de1.netrun.io";
 let chartInstance = null;
 
 async function fetchWithRetry(url, options, retries = 15, delay = 3000) {
