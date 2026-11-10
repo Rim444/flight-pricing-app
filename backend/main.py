@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
@@ -13,9 +13,6 @@ from typing import Optional
 SECRET_KEY = "your-secret-key-12345"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-if os.path.exists("users.db"):
-    os.remove("users.db")
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./users.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
@@ -36,18 +33,25 @@ def get_password_hash(password: str):
 def verify_password(plain_password: str, hashed_password: str):
     return get_password_hash(plain_password) == hashed_password
 
-db = SessionLocal()
-db.add(User(username="admin", hashed_password=get_password_hash("123456")))
-db.commit()
-db.close()
+# Инициализация admin ТОЛЬКО если его нет
+def init_admin():
+    db = SessionLocal()
+    try:
+        admin = db.query(User).filter(User.username == "admin").first()
+        if not admin:
+            db.add(User(username="admin", hashed_password=get_password_hash("123456")))
+            db.commit()
+    finally:
+        db.close()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+init_admin()
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False, # ИСПРАВЛЕНО ЗДЕСЬ
+    allow_origins=["https://rim444.github.io", "http://localhost:8000", "http://localhost:5500"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -58,7 +62,7 @@ class AuthData(BaseModel):
 
 @app.get("/")
 def healthcheck():
-    return {"status": "ok", "version": "6.0"}
+    return {"status": "ok", "version": "7.0"}
 
 def get_db():
     db = SessionLocal()
@@ -76,23 +80,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except Exception:
-        raise credentials_exception
-    user = get_user(db, username=username)
-    if user is None:
-        raise credentials_exception
-    return user
+async def get_current_user(token: str = Depends(OAuth2PasswordRequestForm), db: Session = Depends(get_db)):
+    # Для простоты используем header-based auth вместо OAuth2 flow
+    pass
 
 @app.post("/register")
 def register(data: AuthData, db: Session = Depends(get_db)):
@@ -123,8 +113,28 @@ FORECAST_DATA = [
     {"route": "Moscow-Istanbul", "date": "2026-06-01", "seats": 150, "X_price": 28000, "X_price_demand": 0.65, "0.1_base_demand": 85, "0.2_base_demand": 95, "0.3_base_demand": 105, "0.4_base_demand": 115, "0.5_base_demand": 130, "0.6_base_demand": 140, "0.7_base_demand": 150, "0.8_base_demand": 160, "0.9_base_demand": 170},
 ]
 
+async def get_current_user_from_header(authorization: str = None, db: Session = Depends(get_db)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
+    token = authorization.replace("Bearer ", "")
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Невалидный токен")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Невалидный токен")
+    
+    user = get_user(db, username=username)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+    return user
+
 @app.get("/api/calculate")
-async def calculate(route: str, date: str, price: float, current_user: User = Depends(get_current_user)):
+async def calculate(route: str, date: str, price: float, authorization: str = None, db: Session = Depends(get_db)):
+    current_user = await get_current_user_from_header(authorization, db)
+    
     row_data = next((item for item in FORECAST_DATA if item["route"] == route and item["date"] == date), None)
     if not row_data:
         raise HTTPException(status_code=404, detail="Route or date not found")
