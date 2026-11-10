@@ -47,7 +47,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False, # ИСПРАВЛЕНО ЗДЕСЬ
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -58,7 +58,7 @@ class AuthData(BaseModel):
 
 @app.get("/")
 def healthcheck():
-    return {"status": "ok", "version": "5.0"}
+    return {"status": "ok", "version": "6.0"}
 
 def get_db():
     db = SessionLocal()
@@ -144,4 +144,4 @@ async def calculate(route: str, date: str, price: float, current_user: User = De
         "sold": купят,
         "remaining": seats - купят,
         "quantiles": quantiles
-    } 
+    }
