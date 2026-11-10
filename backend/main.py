@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
+from pydantic import BaseModel
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -28,7 +29,7 @@ class User(Base):
 Base.metadata.create_all(bind=engine)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 app = FastAPI()
 
@@ -39,6 +40,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class AuthData(BaseModel):
+    username: str
+    password: str
 
 def get_db():
     db = SessionLocal()
@@ -87,24 +92,23 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 @app.post("/register")
-def register(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    if get_user(db, form_data.username):
+def register(data: AuthData, db: Session = Depends(get_db)):
+    if get_user(db, data.username):
         raise HTTPException(status_code=400, detail="Username already registered")
-    hashed_password = get_password_hash(form_data.password)
-    db_user = User(username=form_data.username, hashed_password=hashed_password)
+    hashed_password = get_password_hash(data.password)
+    db_user = User(username=data.username, hashed_password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return {"message": "User created successfully"}
 
-@app.post("/token")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = authenticate_user(db, form_data.username, form_data.password)
+@app.post("/login")
+def login(data: AuthData, db: Session = Depends(get_db)):
+    user = authenticate_user(db, data.username, data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Incorrect username or password"
         )
     access_token = create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "token_type": "bearer"}
