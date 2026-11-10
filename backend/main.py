@@ -2,14 +2,14 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
-from jose import JWTError, jwt
-from datetime import datetime, timedelta
+import jwt
+from jwt import InvalidTokenError
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import pandas as pd
-import urllib.request
 
 SECRET_KEY = "your-secret-key-12345"
 ALGORITHM = "HS256"
@@ -65,7 +65,7 @@ def authenticate_user(db, username: str, password: str):
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -80,7 +80,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-    except JWTError:
+    except InvalidTokenError:
         raise credentials_exception
     user = get_user(db, username=username)
     if user is None:
