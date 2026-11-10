@@ -9,48 +9,58 @@ function logout() {
 async function login() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
-    const formData = new URLSearchParams();
-    formData.append("username", username);
-    formData.append("password", password);
+    const errorEl = document.getElementById("error-msg");
+    errorEl.innerText = "Загрузка...";
 
     try {
-        const response = await fetch(`${API_URL}/token`, {
+        const response = await fetch(`${API_URL}/login`, {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formData
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
         });
         if (response.ok) {
             const data = await response.json();
             localStorage.setItem("token", data.access_token);
             window.location.href = "index.html";
         } else {
-            document.getElementById("error-msg").innerText = "Неверный логин или пароль";
+            const err = await response.json();
+            errorEl.innerText = "Ошибка: " + JSON.stringify(err.detail);
         }
     } catch (e) {
-        document.getElementById("error-msg").innerText = "Ошибка подключения к серверу";
+        errorEl.innerText = "Сервер спит. Подождите 30 секунд и нажмите еще раз.";
     }
 }
 
 async function register() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
-    const formData = new URLSearchParams();
-    formData.append("username", username);
-    formData.append("password", password);
+    const errorEl = document.getElementById("error-msg");
+    
+    if (username.length < 3) {
+        errorEl.innerText = "Логин должен быть от 3 символов!";
+        return;
+    }
+    if (password.length < 6) {
+        errorEl.innerText = "Пароль должен быть от 6 символов!";
+        return;
+    }
+    errorEl.innerText = "Загрузка...";
 
     try {
         const response = await fetch(`${API_URL}/register`, {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formData
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
         });
         if (response.ok) {
             alert("Регистрация успешна! Теперь войдите.");
+            errorEl.innerText = "";
         } else {
-            document.getElementById("error-msg").innerText = "Пользователь уже существует";
+            const err = await response.json();
+            errorEl.innerText = "Сервер: " + JSON.stringify(err.detail);
         }
     } catch (e) {
-        document.getElementById("error-msg").innerText = "Ошибка подключения к серверу";
+        errorEl.innerText = "Сервер спит. Подождите 30 секунд.";
     }
 }
 
@@ -77,6 +87,7 @@ async function calculate() {
         });
         
         if (response.status === 401) {
+            alert("Ошибка авторизации.");
             logout();
             return;
         }
@@ -98,7 +109,7 @@ async function calculate() {
 
         drawChart(data.quantiles, data.total_seats);
     } catch (e) {
-        alert("Ошибка подключения к серверу");
+        alert("Сервер просыпается. Подождите 30 секунд и нажмите еще раз.");
     }
 }
 
@@ -137,14 +148,12 @@ function drawChart(quantiles, seats) {
         },
         options: {
             responsive: true,
-            scales: {
-                y: { beginAtZero: true }
-            }
+            scales: { y: { beginAtZero: true } }
         }
     });
 }
 
-if (window.location.pathname.endsWith("index.html")) {
+if (document.getElementById("route")) {
     if (!localStorage.getItem("token")) {
         window.location.href = "login.html";
     }
