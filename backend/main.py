@@ -6,12 +6,16 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from pydantic import BaseModel
 import jwt
 import hashlib
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 SECRET_KEY = "your-secret-key-12345"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+if os.path.exists("users.db"):
+    os.remove("users.db")
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./users.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
@@ -33,9 +37,8 @@ def verify_password(plain_password: str, hashed_password: str):
     return get_password_hash(plain_password) == hashed_password
 
 db = SessionLocal()
-if not db.query(User).filter(User.username == "admin").first():
-    db.add(User(username="admin", hashed_password=get_password_hash("123456")))
-    db.commit()
+db.add(User(username="admin", hashed_password=get_password_hash("123456")))
+db.commit()
 db.close()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -55,7 +58,7 @@ class AuthData(BaseModel):
 
 @app.get("/")
 def healthcheck():
-    return {"status": "ok", "version": "4.0"}
+    return {"status": "ok", "version": "5.0"}
 
 def get_db():
     db = SessionLocal()
