@@ -8,7 +8,6 @@ import jwt
 import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import pandas as pd
 
 SECRET_KEY = "your-secret-key-12345"
 ALGORITHM = "HS256"
@@ -40,7 +39,6 @@ if not db.query(User).filter(User.username == "admin").first():
 db.close()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
-
 app = FastAPI()
 
 app.add_middleware(
@@ -57,7 +55,7 @@ class AuthData(BaseModel):
 
 @app.get("/")
 def healthcheck():
-    return {"status": "ok", "version": "3.0"}
+    return {"status": "ok", "version": "4.0"}
 
 def get_db():
     db = SessionLocal()
@@ -114,39 +112,20 @@ def login(data: AuthData, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "token_type": "bearer"}
 
-def load_data():
-    data = {
-        "route": ["Moscow-Beijing", "Moscow-Paris", "Moscow-New York", "Moscow-Dubai", "Moscow-Istanbul"] * 6,
-        "date": ["2026-06-01"] * 30,
-        "seats": [150] * 30,
-        "X_price": [25000, 30000, 45000, 35000, 28000] * 6,
-        "X_price_demand": [0.5, 0.6, 0.7, 0.55, 0.65] * 6,
-        "0.1_base_demand": [80, 60, 90, 70, 85] * 6,
-        "0.2_base_demand": [90, 70, 100, 80, 95] * 6,
-        "0.3_base_demand": [100, 80, 110, 90, 105] * 6,
-        "0.4_base_demand": [110, 90, 120, 100, 115] * 6,
-        "0.5_base_demand": [120, 95, 140, 110, 130] * 6,
-        "0.6_base_demand": [130, 100, 150, 120, 140] * 6,
-        "0.7_base_demand": [140, 110, 160, 130, 150] * 6,
-        "0.8_base_demand": [150, 120, 170, 140, 160] * 6,
-        "0.9_base_demand": [160, 130, 180, 150, 170] * 6
-    }
-    return pd.DataFrame(data)
-
-FORECAST_DF = load_data()
+FORECAST_DATA = [
+    {"route": "Moscow-Beijing", "date": "2026-06-01", "seats": 150, "X_price": 25000, "X_price_demand": 0.5, "0.1_base_demand": 80, "0.2_base_demand": 90, "0.3_base_demand": 100, "0.4_base_demand": 110, "0.5_base_demand": 120, "0.6_base_demand": 130, "0.7_base_demand": 140, "0.8_base_demand": 150, "0.9_base_demand": 160},
+    {"route": "Moscow-Paris", "date": "2026-06-01", "seats": 150, "X_price": 30000, "X_price_demand": 0.6, "0.1_base_demand": 60, "0.2_base_demand": 70, "0.3_base_demand": 80, "0.4_base_demand": 90, "0.5_base_demand": 95, "0.6_base_demand": 100, "0.7_base_demand": 110, "0.8_base_demand": 120, "0.9_base_demand": 130},
+    {"route": "Moscow-New York", "date": "2026-06-01", "seats": 150, "X_price": 45000, "X_price_demand": 0.7, "0.1_base_demand": 90, "0.2_base_demand": 100, "0.3_base_demand": 110, "0.4_base_demand": 120, "0.5_base_demand": 140, "0.6_base_demand": 150, "0.7_base_demand": 160, "0.8_base_demand": 170, "0.9_base_demand": 180},
+    {"route": "Moscow-Dubai", "date": "2026-06-01", "seats": 150, "X_price": 35000, "X_price_demand": 0.55, "0.1_base_demand": 70, "0.2_base_demand": 80, "0.3_base_demand": 90, "0.4_base_demand": 100, "0.5_base_demand": 110, "0.6_base_demand": 120, "0.7_base_demand": 130, "0.8_base_demand": 140, "0.9_base_demand": 150},
+    {"route": "Moscow-Istanbul", "date": "2026-06-01", "seats": 150, "X_price": 28000, "X_price_demand": 0.65, "0.1_base_demand": 85, "0.2_base_demand": 95, "0.3_base_demand": 105, "0.4_base_demand": 115, "0.5_base_demand": 130, "0.6_base_demand": 140, "0.7_base_demand": 150, "0.8_base_demand": 160, "0.9_base_demand": 170},
+]
 
 @app.get("/api/calculate")
-async def calculate(
-    route: str,
-    date: str,
-    price: float,
-    current_user: User = Depends(get_current_user)
-):
-    row = FORECAST_DF[(FORECAST_DF["route"] == route) & (FORECAST_DF["date"] == date)]
-    if row.empty:
+async def calculate(route: str, date: str, price: float, current_user: User = Depends(get_current_user)):
+    row_data = next((item for item in FORECAST_DATA if item["route"] == route and item["date"] == date), None)
+    if not row_data:
         raise HTTPException(status_code=404, detail="Route or date not found")
     
-    row_data = row.iloc[0]
     seats = int(row_data["seats"])
     base_price = float(row_data["X_price"])
     sensitivity = float(row_data["X_price_demand"])
