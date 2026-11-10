@@ -144,4 +144,4 @@ async def calculate(route: str, date: str, price: float, current_user: User = De
         "sold": купят,
         "remaining": seats - купят,
         "quantiles": quantiles
-    }
+    } 
