@@ -29,6 +29,14 @@ class User(Base):
 Base.metadata.create_all(bind=engine)
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+
+db = SessionLocal()
+if not db.query(User).filter(User.username == "admin").first():
+    hashed_pw = pwd_context.hash("123456")
+    db.add(User(username="admin", hashed_password=hashed_pw))
+    db.commit()
+db.close()
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 app = FastAPI()
