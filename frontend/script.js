@@ -1,4 +1,4 @@
-const API_URL = "ВАШ_URL_ИЗ_RENDER";
+const API_URL = "ВАШ_URL_ИЗ_AMVERA";
 let chartInstance = null;
 
 function logout() {
@@ -96,21 +96,16 @@ async function calculate() {
         document.getElementById("sold").innerText = data.sold;
         document.getElementById("remaining").innerText = data.remaining;
 
-        drawChart(data.want_to_buy);
+        drawChart(data.quantiles, data.total_seats);
     } catch (e) {
         alert("Ошибка подключения к серверу");
     }
 }
 
-function drawChart(baseDemand) {
+function drawChart(quantiles, seats) {
     const ctx = document.getElementById('distributionChart').getContext('2d');
     const labels = ['10%', '20%', '30%', '40%', '50% (Медиана)', '60%', '70%', '80%', '90%'];
-    const dataPoints = [
-        Math.round(baseDemand * 0.6), Math.round(baseDemand * 0.7), Math.round(baseDemand * 0.8),
-        Math.round(baseDemand * 0.9), baseDemand,
-        Math.round(baseDemand * 1.1), Math.round(baseDemand * 1.2), Math.round(baseDemand * 1.3),
-        Math.round(baseDemand * 1.4)
-    ];
+    const seatsLine = new Array(9).fill(seats);
 
     if (chartInstance) {
         chartInstance.destroy();
@@ -120,14 +115,25 @@ function drawChart(baseDemand) {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'Распределение спроса (9 квантилей)',
-                data: dataPoints,
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                fill: true,
-                tension: 0.4
-            }]
+            datasets: [
+                {
+                    label: 'Прогноз спроса',
+                    data: quantiles,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4
+                },
+                {
+                    label: 'Всего мест (вместимость)',
+                    data: seatsLine,
+                    borderColor: '#ef4444',
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false
+                }
+            ]
         },
         options: {
             responsive: true,
