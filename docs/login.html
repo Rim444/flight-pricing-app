@@ -9,10 +9,14 @@
 <body>
     <div class="container auth-container">
         <h2>Вход в систему</h2>
-        <input type="text" id="username" placeholder="Логин">
-        <input type="password" id="password" placeholder="Пароль">
+        
+        <input type="text" id="username" placeholder="Логин" oninput="checkUserType()">
+        <input type="password" id="password" placeholder="Пароль (от 6 символов)">
+        <input type="password" id="password-confirm" placeholder="Подтвердите пароль" class="hidden">
+        
         <button onclick="login()">Войти</button>
-        <button onclick="register()" class="secondary">Зарегистрироваться</button>
+        <button onclick="register()" id="btn-register" class="secondary">Зарегистрироваться</button>
+        
         <p id="error-msg" class="error"></p>
     </div>
     <script src="script.js"></script>
