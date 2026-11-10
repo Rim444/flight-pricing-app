@@ -9,7 +9,6 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
 import pandas as pd
-import os
 import urllib.request
 
 SECRET_KEY = "your-secret-key-12345"
@@ -60,21 +59,15 @@ def get_user(db, username: str):
 
 def authenticate_user(db, username: str, password: str):
     user = get_user(db, username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
+    if not user or not verify_password(password, user.hashed_password):
         return False
     return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -114,10 +107,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
+    access_token = create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/users/me")
@@ -125,28 +115,30 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return {"username": current_user.username}
 
 def load_data():
-    forecast_url = "https://raw.githubusercontent.com/username/repo/main/seasonal_forecast.csv"
-    routes_url = "https://raw.githubusercontent.com/username/repo/main/routes.csv"
+    forecast_url = "https://raw.githubusercontent.com/ВАШ_ЛОГИН/flight-pricing-app/main/seasonal_forecast.csv"
     try:
-        forecast_df = pd.read_csv(forecast_url)
-        routes_df = pd.read_csv(routes_url)
+        df = pd.read_csv(forecast_url)
     except Exception:
-        forecast_df = pd.DataFrame({
-            "route": ["Moscow-Beijing", "Moscow-Paris", "Moscow-New York", "Moscow-Dubai", "Moscow-Istanbul"] * 3,
-            "date": ["2026-06-01", "2026-06-05", "2026-06-10", "2026-06-15", "2026-06-20",
-                     "2026-06-08", "2026-06-12", "2026-06-18", "2026-06-22", "2026-06-25",
-                     "2026-06-02", "2026-06-06", "2026-06-11", "2026-06-16", "2026-06-21"],
-            "median_demand": [120, 95, 140, 110, 130, 115, 100, 135, 105, 125, 118, 98, 138, 108, 128],
-            "base_price": [25000, 30000, 45000, 35000, 28000, 26000, 31000, 46000, 36000, 29000, 25500, 30500, 45500, 35500, 28500],
-            "sensitivity": [0.5, 0.6, 0.7, 0.55, 0.65, 0.52, 0.62, 0.72, 0.57, 0.67, 0.51, 0.61, 0.71, 0.56, 0.66]
-        })
-        routes_df = pd.DataFrame({
-            "route": ["Moscow-Beijing", "Moscow-Paris", "Moscow-New York", "Moscow-Dubai", "Moscow-Istanbul"],
-            "total_seats": [150, 150, 150, 150, 150]
-        })
-    return forecast_df, routes_df
+        data = {
+            "route": ["Moscow-Beijing", "Moscow-Paris", "Moscow-New York", "Moscow-Dubai", "Moscow-Istanbul"] * 6,
+            "date": ["2026-06-01"] * 30,
+            "seats": [150] * 30,
+            "X_price": [25000, 30000, 45000, 35000, 28000] * 6,
+            "X_price_demand": [0.5, 0.6, 0.7, 0.55, 0.65] * 6,
+            "0.1_base_demand": [80, 60, 90, 70, 85] * 6,
+            "0.2_base_demand": [90, 70, 100, 80, 95] * 6,
+            "0.3_base_demand": [100, 80, 110, 90, 105] * 6,
+            "0.4_base_demand": [110, 90, 120, 100, 115] * 6,
+            "0.5_base_demand": [120, 95, 140, 110, 130] * 6,
+            "0.6_base_demand": [130, 100, 150, 120, 140] * 6,
+            "0.7_base_demand": [140, 110, 160, 130, 150] * 6,
+            "0.8_base_demand": [150, 120, 170, 140, 160] * 6,
+            "0.9_base_demand": [160, 130, 180, 150, 170] * 6
+        }
+        df = pd.DataFrame(data)
+    return df
 
-FORECAST_DF, ROUTES_DF = load_data()
+FORECAST_DF = load_data()
 
 @app.get("/api/calculate")
 async def calculate(
@@ -159,20 +151,21 @@ async def calculate(
     if row.empty:
         raise HTTPException(status_code=404, detail="Route or date not found")
     
-    median_demand = float(row.iloc[0]["median_demand"])
-    base_price = float(row.iloc[0]["base_price"])
-    sensitivity = float(row.iloc[0]["sensitivity"])
-    
-    route_info = ROUTES_DF[ROUTES_DF["route"] == route]
-    total_seats = int(route_info.iloc[0]["total_seats"]) if not route_info.empty else 150
+    row_data = row.iloc[0]
+    seats = int(row_data["seats"])
+    base_price = float(row_data["X_price"])
+    sensitivity = float(row_data["X_price_demand"])
+    median_demand = float(row_data["0.5_base_demand"])
     
     желают = median_demand - sensitivity * (price - base_price)
-    купят = min(total_seats, max(0, int(желают)))
-    осталось = total_seats - купят
+    купят = min(seats, max(0, int(желают)))
+    
+    quantiles = [max(0, int(float(row_data[f"{q}_base_demand"]) - sensitivity * (price - base_price))) for q in ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]]
     
     return {
-        "total_seats": total_seats,
+        "total_seats": seats,
         "want_to_buy": max(0, int(желают)),
         "sold": купят,
-        "remaining": осталось
+        "remaining": seats - купят,
+        "quantiles": quantiles
     }
