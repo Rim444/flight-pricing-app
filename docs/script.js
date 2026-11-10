@@ -134,4 +134,4 @@ async function calculate() {
 
 if (document.getElementById("route")) {
     if (!localStorage.getItem("token")) { window.location.href = "login.html"; }
-}
+}  
