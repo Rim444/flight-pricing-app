@@ -1,0 +1,26 @@
+* { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body { margin: 0; background-color: #f3f4f6; color: #1f2937; display: flex; justify-content: center; padding: 20px; }
+.container { width: 100%; max-width: 800px; background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.auth-container { max-width: 400px; margin-top: 10vh; text-align: center; }
+h2 { margin-top: 0; color: #111827; }
+input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #d1d5db; border-radius: 6px; font-size: 16px; }
+button { width: 100%; padding: 10px; background-color: #2563eb; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 8px; transition: background 0.2s; }
+button:hover { background-color: #1d4ed8; }
+button.secondary { background-color: #e5e7eb; color: #374151; }
+button.secondary:hover { background-color: #d1d5db; }
+button.danger { width: auto; background-color: #ef4444; padding: 8px 16px; }
+button.danger:hover { background-color: #dc2626; }
+.error { color: #ef4444; margin-top: 10px; font-size: 14px; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; }
+.input-group { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 20px; }
+.input-group button { margin-top: 8px; width: auto; }
+.results { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+.card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center; }
+.card h3 { margin: 0 0 10px 0; font-size: 14px; color: #64748b; }
+.card p { margin: 0; font-size: 24px; font-weight: bold; color: #0f172a; }
+#chart-container { background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+.hidden { display: none; }
+@media (max-width: 600px) {
+    .input-group { grid-template-columns: 1fr; }
+    .results { grid-template-columns: 1fr 1fr; }
+}
