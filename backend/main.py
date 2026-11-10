@@ -28,7 +28,7 @@ class User(Base):
 
 Base.metadata.create_all(bind=engine)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 app = FastAPI()
@@ -118,7 +118,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return {"username": current_user.username}
 
 def load_data():
-    forecast_url = "https://raw.githubusercontent.com/ВАШ_ЛОГИН/flight-pricing-app/main/seasonal_forecast.csv"
+    forecast_url = "https://raw.githubusercontent.com/Rim444/flight-pricing-app/main/seasonal_forecast.csv"
     try:
         df = pd.read_csv(forecast_url)
     except Exception:
