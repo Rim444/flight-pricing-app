@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -42,8 +42,8 @@ app.add_middleware(
 )
 
 class AuthData(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=3, max_length=20)
+    password: str = Field(..., min_length=6, max_length=50)
 
 def get_db():
     db = SessionLocal()
