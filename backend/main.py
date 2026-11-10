@@ -2,11 +2,10 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from passlib.context import CryptContext
-from pydantic import BaseModel, Field
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from pydantic import BaseModel
 import jwt
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import pandas as pd
@@ -28,12 +27,15 @@ class User(Base):
 
 Base.metadata.create_all(bind=engine)
 
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+def get_password_hash(password: str):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(plain_password: str, hashed_password: str):
+    return get_password_hash(plain_password) == hashed_password
 
 db = SessionLocal()
 if not db.query(User).filter(User.username == "admin").first():
-    hashed_pw = pwd_context.hash("123456")
-    db.add(User(username="admin", hashed_password=hashed_pw))
+    db.add(User(username="admin", hashed_password=get_password_hash("123456")))
     db.commit()
 db.close()
 
@@ -50,8 +52,12 @@ app.add_middleware(
 )
 
 class AuthData(BaseModel):
-    username: str = Field(..., min_length=3, max_length=20)
-    password: str = Field(..., min_length=6, max_length=50)
+    username: str
+    password: str
+
+@app.get("/")
+def healthcheck():
+    return {"status": "ok", "version": "3.0"}
 
 def get_db():
     db = SessionLocal()
@@ -60,20 +66,8 @@ def get_db():
     finally:
         db.close()
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
 def get_user(db, username: str):
     return db.query(User).filter(User.username == username).first()
-
-def authenticate_user(db, username: str, password: str):
-    user = get_user(db, username)
-    if not user or not verify_password(password, user.hashed_password):
-        return False
-    return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -101,53 +95,43 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
 @app.post("/register")
 def register(data: AuthData, db: Session = Depends(get_db)):
+    if len(data.username) < 3 or len(data.password) < 6:
+        raise HTTPException(status_code=400, detail="Логин от 3 символов, пароль от 6")
     if get_user(db, data.username):
-        raise HTTPException(status_code=400, detail="Username already registered")
-    hashed_password = get_password_hash(data.password)
-    db_user = User(username=data.username, hashed_password=hashed_password)
+        raise HTTPException(status_code=400, detail="Пользователь уже существует")
+    
+    db_user = User(username=data.username, hashed_password=get_password_hash(data.password))
     db.add(db_user)
     db.commit()
-    db.refresh(db_user)
     return {"message": "User created successfully"}
 
 @app.post("/login")
 def login(data: AuthData, db: Session = Depends(get_db)):
-    user = authenticate_user(db, data.username, data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
-        )
+    user = get_user(db, data.username)
+    if not user or not verify_password(data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+    
     access_token = create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.get("/users/me")
-async def read_users_me(current_user: User = Depends(get_current_user)):
-    return {"username": current_user.username}
-
 def load_data():
-    forecast_url = "https://raw.githubusercontent.com/Rim444/flight-pricing-app/main/seasonal_forecast.csv"
-    try:
-        df = pd.read_csv(forecast_url)
-    except Exception:
-        data = {
-            "route": ["Moscow-Beijing", "Moscow-Paris", "Moscow-New York", "Moscow-Dubai", "Moscow-Istanbul"] * 6,
-            "date": ["2026-06-01"] * 30,
-            "seats": [150] * 30,
-            "X_price": [25000, 30000, 45000, 35000, 28000] * 6,
-            "X_price_demand": [0.5, 0.6, 0.7, 0.55, 0.65] * 6,
-            "0.1_base_demand": [80, 60, 90, 70, 85] * 6,
-            "0.2_base_demand": [90, 70, 100, 80, 95] * 6,
-            "0.3_base_demand": [100, 80, 110, 90, 105] * 6,
-            "0.4_base_demand": [110, 90, 120, 100, 115] * 6,
-            "0.5_base_demand": [120, 95, 140, 110, 130] * 6,
-            "0.6_base_demand": [130, 100, 150, 120, 140] * 6,
-            "0.7_base_demand": [140, 110, 160, 130, 150] * 6,
-            "0.8_base_demand": [150, 120, 170, 140, 160] * 6,
-            "0.9_base_demand": [160, 130, 180, 150, 170] * 6
-        }
-        df = pd.DataFrame(data)
-    return df
+    data = {
+        "route": ["Moscow-Beijing", "Moscow-Paris", "Moscow-New York", "Moscow-Dubai", "Moscow-Istanbul"] * 6,
+        "date": ["2026-06-01"] * 30,
+        "seats": [150] * 30,
+        "X_price": [25000, 30000, 45000, 35000, 28000] * 6,
+        "X_price_demand": [0.5, 0.6, 0.7, 0.55, 0.65] * 6,
+        "0.1_base_demand": [80, 60, 90, 70, 85] * 6,
+        "0.2_base_demand": [90, 70, 100, 80, 95] * 6,
+        "0.3_base_demand": [100, 80, 110, 90, 105] * 6,
+        "0.4_base_demand": [110, 90, 120, 100, 115] * 6,
+        "0.5_base_demand": [120, 95, 140, 110, 130] * 6,
+        "0.6_base_demand": [130, 100, 150, 120, 140] * 6,
+        "0.7_base_demand": [140, 110, 160, 130, 150] * 6,
+        "0.8_base_demand": [150, 120, 170, 140, 160] * 6,
+        "0.9_base_demand": [160, 130, 180, 150, 170] * 6
+    }
+    return pd.DataFrame(data)
 
 FORECAST_DF = load_data()
 
@@ -170,7 +154,6 @@ async def calculate(
     
     желают = median_demand - sensitivity * (price - base_price)
     купят = min(seats, max(0, int(желают)))
-    
     quantiles = [max(0, int(float(row_data[f"{q}_base_demand"]) - sensitivity * (price - base_price))) for q in ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]]
     
     return {
