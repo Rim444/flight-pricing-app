@@ -1,4 +1,4 @@
-const API_URL = "ВАШ_URL_ИЗ_AMVERA";
+const API_URL = "https://flight-pricing-app.de1.netrun.io";
 let chartInstance = null;
 
 function logout() {
