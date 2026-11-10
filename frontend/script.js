@@ -1,27 +1,6 @@
 const API_URL = "https://fly3.de1.netrun.io";
 let chartInstance = null;
 
-async function fetchWithRetry(url, options, retries = 15, delay = 3000) {
-    for (let i = 0; i < retries; i++) {
-        try {
-            const response = await fetch(url, options);
-            if (response.status === 502 || response.status === 503 || response.status === 504) {
-                if (i === retries - 1) return response;
-                const errorEl = document.getElementById("error-msg");
-                if (errorEl) errorEl.innerText = `Сервер просыпается (попытка ${i + 1} из ${retries})...`;
-                await new Promise(resolve => setTimeout(resolve, delay));
-                continue;
-            }
-            return response;
-        } catch (e) {
-            if (i === retries - 1) throw e;
-            const errorEl = document.getElementById("error-msg");
-            if (errorEl) errorEl.innerText = `Пробуждаем сервер... (попытка ${i + 1} из ${retries})`;
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
-    }
-}
-
 function logout() {
     localStorage.removeItem("token");
     window.location.href = "login.html";
@@ -48,7 +27,7 @@ async function login() {
     errorEl.innerText = "Загрузка...";
 
     try {
-        const response = await fetchWithRetry(`${API_URL}/login`, {
+        const response = await fetch(`${API_URL}/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password })
@@ -63,7 +42,7 @@ async function login() {
             errorEl.innerText = "Ошибка: " + err.detail;
         }
     } catch (e) {
-        errorEl.innerText = "Сервер не отвечает. Подождите минуту и нажмите Войти еще раз.";
+        errorEl.innerText = "Ошибка сети. Сервер просыпается, подождите 20 сек и нажмите снова.";
     }
 }
 
@@ -80,7 +59,7 @@ async function register() {
     errorEl.innerText = "Загрузка...";
 
     try {
-        const response = await fetchWithRetry(`${API_URL}/register`, {
+        const response = await fetch(`${API_URL}/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password })
@@ -94,7 +73,7 @@ async function register() {
             errorEl.innerText = "Сервер: " + err.detail;
         }
     } catch (e) {
-        errorEl.innerText = "Сервер не отвечает. Подождите минуту.";
+        errorEl.innerText = "Ошибка сети. Подождите 20 сек.";
     }
 }
 
@@ -108,7 +87,7 @@ async function calculate() {
     if (!date || !price) { alert("Заполните дату и цену"); return; }
 
     try {
-        const response = await fetchWithRetry(`${API_URL}/api/calculate?route=${route}&date=${date}&price=${price}`, {
+        const response = await fetch(`${API_URL}/api/calculate?route=${route}&date=${date}&price=${price}`, {
             method: "GET",
             headers: { "Authorization": `Bearer ${token}` }
         });
@@ -136,7 +115,7 @@ async function calculate() {
                 ]
             }
         });
-    } catch (e) { alert("Сервер просыпается... Нажмите кнопку 'Рассчитать' еще раз через 10 секунд."); }
+    } catch (e) { alert("Сервер просыпается... Нажмите Рассчитать еще раз через 10 секунд."); }
 }
 
 if (document.getElementById("route")) {
