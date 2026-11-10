@@ -6,7 +6,6 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
 import jwt
-from jwt import PyJWTError
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import pandas as pd
@@ -80,7 +79,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-    except PyJWTError:
+    except Exception:
         raise credentials_exception
     user = get_user(db, username=username)
     if user is None:
