@@ -1,151 +1,144 @@
 const API_URL = "https://flight-pricing-app.de1.netrun.io";
 let chartInstance = null;
 
+async function fetchWithRetry(url, options, retries = 15, delay = 3000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url, options);
+            if (response.status === 502 || response.status === 503 || response.status === 504) {
+                if (i === retries - 1) return response;
+                const errorEl = document.getElementById("error-msg");
+                if (errorEl) errorEl.innerText = `Сервер просыпается (попытка ${i + 1} из ${retries})...`;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+            return response;
+        } catch (e) {
+            if (i === retries - 1) throw e;
+            const errorEl = document.getElementById("error-msg");
+            if (errorEl) errorEl.innerText = `Пробуждаем сервер... (попытка ${i + 1} из ${retries})`;
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+}
+
 function logout() {
     localStorage.removeItem("token");
     window.location.href = "login.html";
 }
 
+function checkUserType() {
+    const username = document.getElementById("username").value;
+    const confirmField = document.getElementById("password-confirm");
+    const btnReg = document.getElementById("btn-register");
+    
+    if (username === "admin") {
+        confirmField.classList.add("hidden");
+        btnReg.classList.add("hidden");
+    } else {
+        confirmField.classList.remove("hidden");
+        btnReg.classList.remove("hidden");
+    }
+}
+
 async function login() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
-    const formData = new URLSearchParams();
-    formData.append("username", username);
-    formData.append("password", password);
+    const errorEl = document.getElementById("error-msg");
+    errorEl.innerText = "Загрузка...";
 
     try {
-        const response = await fetch(`${API_URL}/token`, {
+        const response = await fetchWithRetry(`${API_URL}/login`, {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formData
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
         });
+        
         if (response.ok) {
             const data = await response.json();
             localStorage.setItem("token", data.access_token);
             window.location.href = "index.html";
         } else {
-            document.getElementById("error-msg").innerText = "Неверный логин или пароль";
+            const err = await response.json();
+            errorEl.innerText = "Ошибка: " + err.detail;
         }
     } catch (e) {
-        document.getElementById("error-msg").innerText = "Ошибка подключения к серверу";
+        errorEl.innerText = "Сервер не отвечает. Подождите минуту и нажмите Войти еще раз.";
     }
 }
 
 async function register() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
-    const formData = new URLSearchParams();
-    formData.append("username", username);
-    formData.append("password", password);
+    const confirm = document.getElementById("password-confirm").value;
+    const errorEl = document.getElementById("error-msg");
+    
+    if (password !== confirm) {
+        errorEl.innerText = "Пароли не совпадают!";
+        return;
+    }
+    errorEl.innerText = "Загрузка...";
 
     try {
-        const response = await fetch(`${API_URL}/register`, {
+        const response = await fetchWithRetry(`${API_URL}/register`, {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formData
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
         });
+        
         if (response.ok) {
-            alert("Регистрация успешна! Теперь войдите.");
+            alert("Регистрация успешна! Теперь нажмите Войти.");
+            errorEl.innerText = "";
         } else {
-            document.getElementById("error-msg").innerText = "Пользователь уже существует";
+            const err = await response.json();
+            errorEl.innerText = "Сервер: " + err.detail;
         }
     } catch (e) {
-        document.getElementById("error-msg").innerText = "Ошибка подключения к серверу";
+        errorEl.innerText = "Сервер не отвечает. Подождите минуту.";
     }
 }
 
 async function calculate() {
     const token = localStorage.getItem("token");
-    if (!token) {
-        window.location.href = "login.html";
-        return;
-    }
+    if (!token) { window.location.href = "login.html"; return; }
 
     const route = document.getElementById("route").value;
     const date = document.getElementById("date").value;
     const price = document.getElementById("price").value;
-
-    if (!date || !price) {
-        alert("Заполните дату и цену");
-        return;
-    }
+    if (!date || !price) { alert("Заполните дату и цену"); return; }
 
     try {
-        const response = await fetch(`${API_URL}/api/calculate?route=${route}&date=${date}&price=${price}`, {
+        const response = await fetchWithRetry(`${API_URL}/api/calculate?route=${route}&date=${date}&price=${price}`, {
             method: "GET",
             headers: { "Authorization": `Bearer ${token}` }
         });
         
-        if (response.status === 401) {
-            logout();
-            return;
-        }
-        
-        if (!response.ok) {
-            alert("Ошибка: маршрут или дата не найдены в прогнозе");
-            return;
-        }
+        if (response.status === 401) { alert("Ошибка входа"); logout(); return; }
+        if (!response.ok) { alert("Данные не найдены"); return; }
 
         const data = await response.json();
-        
         document.getElementById("results").classList.remove("hidden");
         document.getElementById("chart-container").classList.remove("hidden");
-        
         document.getElementById("total-seats").innerText = data.total_seats;
         document.getElementById("want-to-buy").innerText = data.want_to_buy;
         document.getElementById("sold").innerText = data.sold;
         document.getElementById("remaining").innerText = data.remaining;
 
-        drawChart(data.quantiles, data.total_seats);
-    } catch (e) {
-        alert("Ошибка подключения к серверу");
-    }
-}
-
-function drawChart(quantiles, seats) {
-    const ctx = document.getElementById('distributionChart').getContext('2d');
-    const labels = ['10%', '20%', '30%', '40%', '50% (Медиана)', '60%', '70%', '80%', '90%'];
-    const seatsLine = new Array(9).fill(seats);
-
-    if (chartInstance) {
-        chartInstance.destroy();
-    }
-
-    chartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Прогноз спроса',
-                    data: quantiles,
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 4
-                },
-                {
-                    label: 'Всего мест (вместимость)',
-                    data: seatsLine,
-                    borderColor: '#ef4444',
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    fill: false
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: { beginAtZero: true }
+        const ctx = document.getElementById('distributionChart').getContext('2d');
+        if (window.chartInstance) window.chartInstance.destroy();
+        window.chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['10%', '20%', '30%', '40%', '50%', '60%', '70%', '80%', '90%'],
+                datasets: [
+                    { label: 'Спрос', data: data.quantiles, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.2)', fill: true },
+                    { label: 'Места', data: new Array(9).fill(data.total_seats), borderColor: '#ef4444', borderDash: [5, 5] }
+                ]
             }
-        }
-    });
+        });
+    } catch (e) { alert("Сервер просыпается... Нажмите кнопку 'Рассчитать' еще раз через 10 секунд."); }
 }
 
-if (window.location.pathname.endsWith("index.html")) {
-    if (!localStorage.getItem("token")) {
-        window.location.href = "login.html";
-    }
+if (document.getElementById("route")) {
+    if (!localStorage.getItem("token")) { window.location.href = "login.html"; }
 }
