@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель менеджера</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h2>Панель менеджера</h2>
+            <button onclick="logout()" class="danger">Выйти</button>
+        </header>
+        <main>
+            <div class="input-group">
+                <select id="route">
+                    <option value="Moscow-Beijing">Moscow-Beijing</option>
+                    <option value="Moscow-Paris">Moscow-Paris</option>
+                    <option value="Moscow-New York">Moscow-New York</option>
+                    <option value="Moscow-Dubai">Moscow-Dubai</option>
+                    <option value="Moscow-Istanbul">Moscow-Istanbul</option>
+                </select>
+                <input type="date" id="date">
+                <input type="number" id="price" placeholder="Цена билета">
+                <button onclick="calculate()">Рассчитать</button>
+            </div>
+            <div id="results" class="results hidden">
+                <div class="card"><h3>Всего мест</h3><p id="total-seats">0</p></div>
+                <div class="card"><h3>Желают купить</h3><p id="want-to-buy">0</p></div>
+                <div class="card"><h3>Реально продано</h3><p id="sold">0</p></div>
+                <div class="card"><h3>Осталось</h3><p id="remaining">0</p></div>
+            </div>
+            <div id="chart-container" class="hidden">
+                <canvas id="distributionChart"></canvas>
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
