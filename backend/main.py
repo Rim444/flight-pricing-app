@@ -157,4 +157,4 @@ def calculate(route: str, date: str, price: float, authorization: str = Header(d
             "sold": sold, "free": seats - sold, "quantiles": want, "labels": QS}
 
 if front_dir is not None:
-    app.mount("/", StaticFiles(directory=str(front_dir), html=True), name="fe")
+    app.mount("/", StaticFiles(directory=str(front_dir), html=True), name="fe") 
