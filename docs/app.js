@@ -41,7 +41,7 @@ async function register(){
 async function boot(){
   const t = localStorage.getItem("t");
   if (!t){ location.href = "login.html"; return; }
-  const who = $("who") || document.querySelector("header span");
+  const who = $("who");
   if (who) who.textContent = "пользователь: " + (localStorage.getItem("u") || "admin");
   let rs;
   try {
@@ -78,16 +78,25 @@ async function calc(){
   $("want-to-buy").textContent = d.want;
   $("sold").textContent = d.sold;
   $("remaining").textContent = d.free;
+  const cp = $("chart-price"); if (cp) cp.textContent = Math.round(price).toLocaleString("ru-RU");
   const ctx = $("distributionChart").getContext("2d");
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: "bar",
     data: { labels: d.labels.map(x => "квантиль " + x), datasets: [
-      { label: "Желают купить (чел.)", data: d.quantiles, backgroundColor: "rgba(11,92,173,.55)" },
+      { label: "Желают купить (чел.)", data: d.quantiles, backgroundColor: "rgba(124,92,255,.55)", borderColor: "#7C5CFF", borderWidth: 1, borderRadius: 6 },
       { label: "Мест в самолёте (" + d.seats + ")", type: "line", data: d.labels.map(() => d.seats),
-        borderColor: "#e14b4b", borderDash: [6,4], pointRadius: 0, fill: false }
+        borderColor: "#FFFFFF", borderDash: [6,4], pointRadius: 0, borderWidth: 2, fill: false }
     ]},
-    options: { responsive: true, scales: { y: { beginAtZero: true, title: { display:true, text:"человек" } } } }
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: "#E8E8EF", font: { family: "Manrope", weight: "700" } } } },
+      scales: {
+        x: { ticks: { color: "#9A9AA8", font: { family: "Manrope" } }, grid: { color: "rgba(42,42,51,.6)" } },
+        y: { beginAtZero: true, ticks: { color: "#9A9AA8", font: { family: "Manrope" } }, grid: { color: "rgba(42,42,51,.6)" },
+             title: { display: true, text: "человек", color: "#9A9AA8", font: { family: "Manrope", weight: "700" } } }
+      }
+    }
   });
 }
 
