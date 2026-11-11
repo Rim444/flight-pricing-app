@@ -41,7 +41,7 @@ async function register(){
 async function boot(){
   const t = localStorage.getItem("t");
   if (!t){ location.href = "login.html"; return; }
-  const who = document.querySelector("header span, #who");
+  const who = $("who") || document.querySelector("header span");
   if (who) who.textContent = "пользователь: " + (localStorage.getItem("u") || "admin");
   let rs;
   try {
@@ -61,14 +61,14 @@ async function boot(){
   sel.addEventListener("change", applyPrice); applyPrice();
 }
 
-async function calculate(){
+async function calc(){
   const t = localStorage.getItem("t"); if (!t){ logout(); return; }
   const route = $("route").value, date = $("date").value, price = parseFloat($("price").value);
   if (!date || isNaN(price)){ alert("Заполните дату и цену"); return; }
   const url = API + `/api/calculate?route=${encodeURIComponent(route)}&date=${date}&price=${price}`;
   let r;
   try { r = await fetch(url, { headers:{ Authorization:"Bearer " + t } }); }
-  catch(e){ alert("Сервер не отвечает, повни через 10 сек"); return; }
+  catch(e){ alert("Сервер не отвечает, повтори через 10 сек"); return; }
   if (r.status === 401){ alert("Сессия истекла"); logout(); return; }
   if (!r.ok){ let d={}; try{ d = await r.json(); }catch(e){} alert(d.detail || "Нет данных на эту дату"); return; }
   const d = await r.json();
@@ -83,9 +83,9 @@ async function calculate(){
   chart = new Chart(ctx, {
     type: "bar",
     data: { labels: d.labels.map(x => "квантиль " + x), datasets: [
-      { label: "Желают купить (чел.)", data: d.quantiles, backgroundColor: "rgba(37,99,235,.55)" },
+      { label: "Желают купить (чел.)", data: d.quantiles, backgroundColor: "rgba(11,92,173,.55)" },
       { label: "Мест в самолёте (" + d.seats + ")", type: "line", data: d.labels.map(() => d.seats),
-        borderColor: "#ef4444", borderDash: [6,4], pointRadius: 0, fill: false }
+        borderColor: "#e14b4b", borderDash: [6,4], pointRadius: 0, fill: false }
     ]},
     options: { responsive: true, scales: { y: { beginAtZero: true, title: { display:true, text:"человек" } } } }
   });
