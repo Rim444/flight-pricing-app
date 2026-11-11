@@ -1,42 +1,53 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель менеджера</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Решись авиа — панель менеджера</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h2>Панель менеджера</h2>
-            <button onclick="logout()" class="danger">Выйти</button>
-        </header>
-        <main>
-            <div class="input-group">
-                <select id="route">
-                    <option value="Moscow-Beijing">Moscow-Beijing</option>
-                    <option value="Moscow-Paris">Moscow-Paris</option>
-                    <option value="Moscow-New York">Moscow-New York</option>
-                    <option value="Moscow-Dubai">Moscow-Dubai</option>
-                    <option value="Moscow-Istanbul">Moscow-Istanbul</option>
-                </select>
-                <input type="date" id="date">
-                <input type="number" id="price" placeholder="Цена билета">
-                <button onclick="calculate()">Рассчитать</button>
-            </div>
-            <div id="results" class="results hidden">
-                <div class="card"><h3>Всего мест</h3><p id="total-seats">0</p></div>
-                <div class="card"><h3>Желают купить</h3><p id="want-to-buy">0</p></div>
-                <div class="card"><h3>Реально продано</h3><p id="sold">0</p></div>
-                <div class="card"><h3>Осталось</h3><p id="remaining">0</p></div>
-            </div>
-            <div id="chart-container" class="hidden">
-                <canvas id="distributionChart"></canvas>
-            </div>
-        </main>
+  <header>
+    <div class="brand">
+      <svg width="104" height="40" viewBox="0 0 150 60" xmlns="http://www.w3.org/2000/svg" aria-label="ЦУ">
+        <g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+          <polygon points="30,6 54,20 54,48 30,62 6,48 6,20"/>
+          <path d="M30,34 L30,6 M30,34 L6,48 M30,34 L54,48"/>
+        </g>
+        <text x="70" y="44" font-family="Manrope,sans-serif" font-size="30" font-weight="800" fill="#FFFFFF">ЦУ</text>
+      </svg>
+      <svg width="150" height="40" viewBox="0 0 220 60" xmlns="http://www.w3.org/2000/svg" aria-label="Решись авиа">
+        <defs><linearGradient id="rg2" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#8A6BFF"/><stop offset="1" stop-color="#5B3FE0"/></linearGradient></defs>
+        <rect x="2" y="6" width="48" height="48" rx="14" fill="url(#rg2)"/>
+        <path d="M14,32 L44,18 L30,46 L26,35 Z" fill="#FFFFFF"/>
+        <path d="M44,18 L26,35" stroke="#5B3FE0" stroke-width="2.4" stroke-linecap="round"/>
+        <text x="62" y="30" font-family="Manrope,sans-serif" font-size="22" font-weight="800" fill="#FFFFFF">РЕШИСЬ</text>
+        <text x="62" y="50" font-family="Manrope,sans-serif" font-size="20" font-weight="700" fill="#B9A3FF" letter-spacing="3">АВИА</text>
+      </svg>
     </div>
-    <script src="script.js"></script>
+    <span id="who"></span>
+    <button class="out" onclick="logout()">Выйти</button>
+  </header>
+  <main>
+    <div class="ctrl">
+      <select id="route"></select>
+      <input id="date" type="date" value="2026-06-12">
+      <input id="price" type="number" value="9000" step="100" placeholder="Цена, ₽">
+      <button onclick="calc()">Рассчитать</button>
+    </div>
+    <div id="results" class="cards hidden">
+      <div><h3>Мест</h3><p id="total-seats">0</p></div>
+      <div><h3>Желают купить</h3><p id="want-to-buy" class="accent">0</p></div>
+      <div><h3>Реально продано</h3><p id="sold">0</p></div>
+      <div><h3>Свободно</h3><p id="remaining">0</p></div>
+    </div>
+    <div id="chart-container" class="hidden">
+      <h3>Распределение спроса при цене <span id="chart-price">—</span> ₽</h3>
+      <canvas id="distributionChart"></canvas>
+    </div>
+  </main>
+  <script src="app.js"></script>
 </body>
 </html>
