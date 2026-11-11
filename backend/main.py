@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 
 SECRET = "k-12345"; ALG = "HS256"; EXP = 60
 QS = ["0.1","0.2","0.3","0.4","0.5","0.6","0.7","0.8","0.9"]
-
 BASE = Path(__file__).resolve().parent.parent
 
 def find_file(names, roots):
@@ -26,7 +25,7 @@ def find_dir(names, roots):
                 return p
     return None
 
-DATA_ROOTS = [BASE / "data", Path.cwd() / "data", Path.cwd()]
+DATA_ROOTS = [BASE / "data", BASE, Path.cwd() / "data", Path.cwd()]
 FRONT_ROOTS = [BASE, Path.cwd()]
 
 fc_path = find_file(["my_forecast.csv"], DATA_ROOTS)
@@ -150,8 +149,7 @@ def calculate(route: str, date: str, price: float, authorization: str = None):
     base, sens = meta.get(route, (float(row.get("0.5_price", 0)) or 0.0, 0.0))
     want = []
     for q in QS:
-        col = f"{q}_base_demand"
-        d = float(row[col]) - sens * (price - base)
+        d = float(row[f"{q}_base_demand"]) - sens * (price - base)
         want.append(max(0, int(round(d))))
     median = want[4]
     sold = min(seats, median)
