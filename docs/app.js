@@ -1,147 +1,94 @@
-const API_URL = "https://fly3.de1.netrun.io";
-let chartInstance = null;
+let chart = null;
+const $ = id => document.getElementById(id);
+const API = "";
 
-// Эта функция будет автоматически будить сервер при загрузке страницы
-async function wakeUpServer() {
-    const errorEl = document.getElementById("error-msg");
-    if (errorEl) errorEl.innerText = "Подключение к серверу...";
-    
-    for (let i = 0; i < 10; i++) {
-        try {
-            const res = await fetch(`${API_URL}/`);
-            if (res.ok) {
-                if (errorEl) errorEl.innerText = "Сервер готов! Введите данные.";
-                return;
-            }
-        } catch (e) {
-            // Игнорируем ошибку, сервер спит
-        }
-        await new Promise(r => setTimeout(r, 3000));
-    }
-    if (errorEl) errorEl.innerText = "Сервер не отвечает. Попробуйте обновить страницу.";
+function logout(){ localStorage.removeItem("t"); localStorage.removeItem("u"); location.href = "login.html"; }
+
+function checkUserType(){
+  const u = $("username").value.trim();
+  const cf = $("password-confirm"), br = $("btn-register");
+  if (u === "admin"){ if(cf) cf.classList.add("hidden"); if(br) br.classList.add("hidden"); }
+  else { if(cf) cf.classList.remove("hidden"); if(br) br.classList.remove("hidden"); }
 }
 
-if (window.location.pathname.endsWith("login.html")) {
-    window.onload = wakeUpServer;
+async function post(path, body){
+  const r = await fetch(API + path, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  let d = {}; try { d = await r.json(); } catch(e){}
+  return { ok:r.ok, data:d };
 }
 
-function logout() {
-    localStorage.removeItem("token");
-    window.location.href = "login.html";
+async function login(){
+  const u = $("username").value.trim(), p = $("password").value;
+  $("error-msg").textContent = "Входим... (первый запрос будит сервер, до ~50 сек)";
+  try {
+    const { ok, data } = await post("/login", { username:u, password:p });
+    if (!ok){ $("error-msg").textContent = data.detail || "Ошибка входа"; return; }
+    localStorage.setItem("t", data.access_token); localStorage.setItem("u", data.user || u);
+    location.href = "index.html";
+  } catch(e){ $("error-msg").textContent = "Сервер не отвечает. Нажми Войти ещё раз."; }
 }
 
-function checkUserType() {
-    const username = document.getElementById("username").value;
-    const confirmField = document.getElementById("password-confirm");
-    const btnReg = document.getElementById("btn-register");
-    
-    if (username === "admin") {
-        confirmField.classList.add("hidden");
-        btnReg.classList.add("hidden");
-    } else {
-        confirmField.classList.remove("hidden");
-        btnReg.classList.remove("hidden");
-    }
+async function register(){
+  const u = $("username").value.trim(), p = $("password").value, c = $("password-confirm").value;
+  if (p !== c){ $("error-msg").textContent = "Пароли не совпадают"; return; }
+  $("error-msg").textContent = "Регистрируем...";
+  try {
+    const { ok, data } = await post("/register", { username:u, password:p });
+    $("error-msg").textContent = ok ? "Готово, теперь нажми Войти" : (data.detail || "Ошибка");
+  } catch(e){ $("error-msg").textContent = "Сервер не отвечает"; }
 }
 
-async function login() {
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
-    const errorEl = document.getElementById("error-msg");
-    errorEl.innerText = "Вход...";
-
-    try {
-        const response = await fetch(`${API_URL}/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password })
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            localStorage.setItem("token", data.access_token);
-            window.location.href = "index.html";
-        } else {
-            const err = await response.json();
-            errorEl.innerText = "Ошибка: " + err.detail;
-        }
-    } catch (e) {
-        errorEl.innerText = "Ошибка сети. Сервер просыпается, подождите 10 сек и нажмите снова.";
-    }
+async function boot(){
+  const t = localStorage.getItem("t");
+  if (!t){ location.href = "login.html"; return; }
+  const who = document.querySelector("header span, #who");
+  if (who) who.textContent = "пользователь: " + (localStorage.getItem("u") || "admin");
+  let rs;
+  try {
+    const r = await fetch(API + "/api/routes", { headers:{ Authorization:"Bearer " + t } });
+    if (r.status === 401){ logout(); return; }
+    rs = await r.json();
+  } catch(e){ alert("Сервер не отвечает, обнови страницу"); return; }
+  const sel = $("route"); sel.innerHTML = "";
+  const priceMap = {};
+  rs.forEach(item => {
+    const o = document.createElement("option");
+    const name = typeof item === "string" ? item : item.route;
+    o.value = name; o.textContent = name; sel.appendChild(o);
+    if (item && item.base_price != null) priceMap[name] = item.base_price;
+  });
+  const applyPrice = () => { const bp = priceMap[sel.value]; if (bp != null) $("price").value = Math.round(bp); };
+  sel.addEventListener("change", applyPrice); applyPrice();
 }
 
-async function register() {
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
-    const confirm = document.getElementById("password-confirm").value;
-    const errorEl = document.getElementById("error-msg");
-    
-    if (password !== confirm) {
-        errorEl.innerText = "Пароли не совпадают!";
-        return;
-    }
-    errorEl.innerText = "Регистрация...";
-
-    try {
-        const response = await fetch(`${API_URL}/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password })
-        });
-        
-        if (response.ok) {
-            alert("Регистрация успешна! Теперь нажмите Войти.");
-            errorEl.innerText = "";
-        } else {
-            const err = await response.json();
-            errorEl.innerText = "Сервер: " + err.detail;
-        }
-    } catch (e) {
-        errorEl.innerText = "Ошибка сети. Подождите 10 сек.";
-    }
+async function calculate(){
+  const t = localStorage.getItem("t"); if (!t){ logout(); return; }
+  const route = $("route").value, date = $("date").value, price = parseFloat($("price").value);
+  if (!date || isNaN(price)){ alert("Заполните дату и цену"); return; }
+  const url = API + `/api/calculate?route=${encodeURIComponent(route)}&date=${date}&price=${price}`;
+  let r;
+  try { r = await fetch(url, { headers:{ Authorization:"Bearer " + t } }); }
+  catch(e){ alert("Сервер не отвечает, повни через 10 сек"); return; }
+  if (r.status === 401){ alert("Сессия истекла"); logout(); return; }
+  if (!r.ok){ let d={}; try{ d = await r.json(); }catch(e){} alert(d.detail || "Нет данных на эту дату"); return; }
+  const d = await r.json();
+  $("results").classList.remove("hidden");
+  $("chart-container").classList.remove("hidden");
+  $("total-seats").textContent = d.seats;
+  $("want-to-buy").textContent = d.want;
+  $("sold").textContent = d.sold;
+  $("remaining").textContent = d.free;
+  const ctx = $("distributionChart").getContext("2d");
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: "bar",
+    data: { labels: d.labels.map(x => "квантиль " + x), datasets: [
+      { label: "Желают купить (чел.)", data: d.quantiles, backgroundColor: "rgba(37,99,235,.55)" },
+      { label: "Мест в самолёте (" + d.seats + ")", type: "line", data: d.labels.map(() => d.seats),
+        borderColor: "#ef4444", borderDash: [6,4], pointRadius: 0, fill: false }
+    ]},
+    options: { responsive: true, scales: { y: { beginAtZero: true, title: { display:true, text:"человек" } } } }
+  });
 }
 
-async function calculate() {
-    const token = localStorage.getItem("token");
-    if (!token) { window.location.href = "login.html"; return; }
-
-    const route = document.getElementById("route").value;
-    const date = document.getElementById("date").value;
-    const price = document.getElementById("price").value;
-    if (!date || !price) { alert("Заполните дату и цену"); return; }
-
-    try {
-        const response = await fetch(`${API_URL}/api/calculate?route=${route}&date=${date}&price=${price}`, {
-            method: "GET",
-            headers: { "Authorization": `Bearer ${token}` }
-        });
-        
-        if (response.status === 401) { alert("Ошибка входа"); logout(); return; }
-        if (!response.ok) { alert("Данные не найдены"); return; }
-
-        const data = await response.json();
-        document.getElementById("results").classList.remove("hidden");
-        document.getElementById("chart-container").classList.remove("hidden");
-        document.getElementById("total-seats").innerText = data.total_seats;
-        document.getElementById("want-to-buy").innerText = data.want_to_buy;
-        document.getElementById("sold").innerText = data.sold;
-        document.getElementById("remaining").innerText = data.remaining;
-
-        const ctx = document.getElementById('distributionChart').getContext('2d');
-        if (window.chartInstance) window.chartInstance.destroy();
-        window.chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['10%', '20%', '30%', '40%', '50%', '60%', '70%', '80%', '90%'],
-                datasets: [
-                    { label: 'Спрос', data: data.quantiles, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.2)', fill: true },
-                    { label: 'Места', data: new Array(9).fill(data.total_seats), borderColor: '#ef4444', borderDash: [5, 5] }
-                ]
-            }
-        });
-    } catch (e) { alert("Сервер просыпается... Нажмите Рассчитать еще раз через 10 секунд."); }
-}
-
-if (document.getElementById("route")) {
-    if (!localStorage.getItem("token")) { window.location.href = "login.html"; }
-}
+if ($("route")) boot();
