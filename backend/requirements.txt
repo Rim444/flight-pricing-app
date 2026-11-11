@@ -2,4 +2,4 @@ fastapi
 uvicorn
 pandas
 pyjwt
-pydantic
+pydantic 
