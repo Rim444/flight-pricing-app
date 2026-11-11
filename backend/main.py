@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import pandas as pd, sqlite3, hashlib, jwt, os, urllib.request
@@ -130,7 +130,7 @@ def login(a: Auth):
     return {"access_token": tok(a.username), "token_type": "bearer", "user": a.username}
 
 @app.get("/api/routes")
-def routes(authorization: str = None):
+def routes(authorization: str = Header(default=None)):
     who(authorization)
     out = []
     for r in sorted(set(str(x) for x in df["route"].unique())):
@@ -139,7 +139,7 @@ def routes(authorization: str = None):
     return out
 
 @app.get("/api/calculate")
-def calculate(route: str, date: str, price: float, authorization: str = None):
+def calculate(route: str, date: str, price: float, authorization: str = Header(default=None)):
     who(authorization)
     row = df[(df["route"].astype(str) == route) & (df["date"].astype(str) == date)]
     if row.empty:
