@@ -1,24 +1,22 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход | Динамическое ценообразование</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вход | Решимся Авиа</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container auth-container">
-        <h2>Вход в систему</h2>
-        
-        <input type="text" id="username" placeholder="Логин" oninput="checkUserType()">
-        <input type="password" id="password" placeholder="Пароль (от 6 символов)">
-        <input type="password" id="password-confirm" placeholder="Подтвердите пароль" class="hidden">
-        
-        <button onclick="login()">Войти</button>
-        <button onclick="register()" id="btn-register" class="secondary">Зарегистрироваться</button>
-        
-        <p id="error-msg" class="error"></p>
-    </div>
-    <script src="app.js"></script>
+  <div class="box">
+    <h2>Решимся Авиа</h2>
+    <p class="sub">Вход в сервис динамических цен</p>
+    <input id="username" placeholder="Логин (admin)" oninput="checkUserType()">
+    <input id="password" type="password" placeholder="Пароль (123456)">
+    <input id="password-confirm" type="password" placeholder="Подтвердите пароль" class="hidden">
+    <button onclick="login()">Войти</button>
+    <button id="btn-register" class="sec" onclick="register()">Зарегистрироваться</button>
+    <p id="error-msg" class="err"></p>
+  </div>
+  <script src="app.js"></script>
 </body>
 </html>
